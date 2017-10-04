@@ -35,7 +35,11 @@ int main()
 	while (true)
 	{
 		// Catch the interrupt signal and send it to custom function
-		signal(SIGINT, stopProcess);
+		if (signal(SIGINT, stopProcess) == SIG_ERR)
+		{
+			printf("Signal handler failed!");
+			exit(4);
+		}
 
 		// Line that contains STD input.
 		char lacLineContent[gnMAX_LINE_BUFFER_LENGTH];
@@ -97,10 +101,14 @@ int main()
 		else if (strcmp(lpsCommandArguments[0], "exit") == 0)
 		{
 			// Exit command called, time to exit this shell
-			for (int i = 0; ganBackgroundProcIDs[i] != 0; i++)
+			for (int i = 0; i < (sizeof(ganBackgroundProcIDs) / sizeof(ganBackgroundProcIDs[0])); i++)
 			{
 				// Kill all child processes
-				kill(ganBackgroundProcIDs[i], SIGTERM);
+				if (ganBackgroundProcIDs[i] != 0 && kill(ganBackgroundProcIDs[i], SIGTERM) < 0)
+				{
+					printf("Kill failed!\n");
+					exit(5);
+				}
 			}
 			printf("Exiting minish\n");
 			exit(0);
@@ -115,6 +123,11 @@ int main()
 		{
 			// Get the current working directory then print it
 			char *lpGetCWD = malloc(gnMAX_LINE_BUFFER_LENGTH);
+			if (lpGetCWD == NULL)
+			{
+				printf("Malloc failed!");
+				exit(5);
+			}
 			pwd(lpGetCWD);
 
 			printf("%s\n", lpGetCWD);
@@ -129,9 +142,22 @@ int main()
 		}
 		else if (strcmp(lpsCommandArguments[0], "fg") == 0)
 		{
-			// Bring process to foreground and wait for completion
-			kill((uintptr_t)lpsCommandArguments[1], SIGCONT);
+			if (lpsCommandArguments[1] == NULL)
+			{
+				continue;
+			}
+
 			waitpid((uintptr_t)(lpsCommandArguments[1]), NULL, 0);
+
+			for (int i = 0; i < (sizeof(ganBackgroundProcIDs) / sizeof(ganBackgroundProcIDs[0])); i++)
+			{
+				if (ganBackgroundProcIDs[i] == (uintptr_t)lpsCommandArguments[1])
+				{
+					ganBackgroundProcIDs[i] = 0;
+					printf("Remvoed proc");
+					break;
+				}
+			}
 		}
 		else
 		{
@@ -143,10 +169,19 @@ int main()
 			mnForkPID = fork();
 		}
 
-		if (mnForkPID == 0) // We're in the child process
+		if (mnForkPID < 0)
+		{
+			printf("Fork failed!\n");
+			exit(5);
+		}
+		else if (mnForkPID == 0) // We're in the child process
 		{
 			// Execute the command in the child process
 			execvp(lpsCommandArguments[0], lpsCommandArguments);
+			
+			// These two line shouldn't execute if execvp works
+			printf("Execvp failed!\n");
+			exit(5);
 		}
 		else // We're in the parent process
 		{
@@ -173,8 +208,13 @@ int main()
 void listjobs()
 {
 	printf("List of backgrounded processes:\n");
-	for (int i = 0; ganBackgroundProcIDs[i] != 0; i++)
+	for (int i = 0; i < (sizeof(ganBackgroundProcIDs) / sizeof(ganBackgroundProcIDs[0])); i++)
 	{
+		if (ganBackgroundProcIDs[i] == 0)
+		{
+			continue;
+		}
+		
 		// Get the PID of the process
 		pid_t lnPIDResult = waitpid(ganBackgroundProcIDs[i], NULL, WNOHANG);
 
@@ -251,10 +291,26 @@ void pwd()
  */
 void cd(char* asPath)
 {
+	if (asPath == NULL)
+	{
+		if (getenv("HOME") != NULL)
+		{
+			chdir(getenv("HOME"));
+			return;
+		}
+		else
+		{
+			printf("No home directory found!\n");
+			exit(3);
+		}
+	}
+	
 	// Save arg as local array (modification easier)
 	char lsPath[gnMAX_LINE_BUFFER_LENGTH];
 	strcpy(lsPath, asPath);
 
+	// No arg = go to home directory
+	
 	if (lsPath[0] == '/')
 	{
 		// If the path is supposed to start at the top of the system

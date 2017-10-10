@@ -889,7 +889,7 @@ asmlinkage long sys_membarrier(int cmd, int flags);
 
 asmlinkage long sys_mlock2(unsigned long start, size_t len, int flags);
 
-# Add asmlinkage for custom function
+// Add asmlinkage for custom function
 asmlinkage int sys_my_xtime(struct timespec *current_time);
 
 #endif

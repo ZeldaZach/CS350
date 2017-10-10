@@ -4,17 +4,17 @@
 #include <linux/unistd.h>
 #include <time.h>
 
-#define __sys_x_time 326
+#define __sys_my_xtime 326
 
 int main(void)
 {
 	int lnReturnValue;
-	struct timespec loTimeSet;
+	struct timespec loTimeStruct;
 
 	while (1)
 	{
-		ret = syscall(__sys_x_time, &loTimeSet);
-		printf("ret=%d errno=%d val=%d\n", lnReturnValue, errno, loTimeSet);
+		lnReturnValue = syscall(__sys_my_xtime, &loTimeStruct);
+		printf("ret=%d errno=%d val=%ld nano sec\n", lnReturnValue, errno, loTimeStruct.tv_sec*1000000000UL + loTimeStruct.tv_nsec);
 		sleep(1);
 	}
 

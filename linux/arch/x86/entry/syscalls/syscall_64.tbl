@@ -332,6 +332,8 @@
 323	common	userfaultfd		sys_userfaultfd
 324	common	membarrier		sys_membarrier
 325	common	mlock2			sys_mlock2
+
+# Add custom entry to table
 326	common	my_xtime		sys_my_xtime
 
 #

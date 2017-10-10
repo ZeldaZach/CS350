@@ -11,6 +11,7 @@ obj-y     = fork.o exec_domain.o panic.o \
 	    notifier.o ksysfs.o cred.o reboot.o \
 	    async.o range.o smpboot.o \
 	    sysxtime.o
+# Added sysxtime.o to the obj-y variable to compile that component
 
 obj-$(CONFIG_MULTIUSER) += groups.o
 

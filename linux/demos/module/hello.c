@@ -12,17 +12,6 @@ static char *name = "World";
 module_param(name, charp, S_IRUGO);
 MODULE_PARM_DESC(name, "Name to display in dmesg");
 
-static struct miscdevice my_time_device = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "my time",
-	.fops = &my_fops
-};
-
-static struct file_operations my_fops = {
-	.owner = THIS_MODULE,
-	.read = my_read
-};
-
 
 static ssize_t my_read(struct file *file, char __user *out, size_t size, loff_t *off)
 {
@@ -48,6 +37,16 @@ static ssize_t my_read(struct file *file, char __user *out, size_t size, loff_t 
 	return size;
 }
 
+static struct file_operations my_fops = {
+	.owner = THIS_MODULE,
+	.read = my_read
+};
+
+static struct miscdevice my_time_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "my time",
+	.fops = &my_fops
+};
 
 // called when module is installed
 int __init init_module(void)

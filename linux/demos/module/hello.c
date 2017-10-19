@@ -9,7 +9,7 @@ static char *name = "World";
 module_param(name, charp, S_IRUGO);
 MODULE_PARM_DESC(name, "Name to display in dmesg");
 
-static struct miscdevice my_misc_device = {
+static struct miscdevice my_time_device = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "my time",
 	.fops = &my_fops
@@ -17,21 +17,32 @@ static struct miscdevice my_misc_device = {
 
 static struct file_operations my_fops = {
 	.owner = THIS_MODULE,
-	//.open = my_open,
-	//.release = my_close,
 	.read = my_read
-	//.llseek = noop_llseek
 };
 
 
 static ssize_t my_read(struct file *file, char __user *out, size_t size, loff_t *off)
 {
-	char *buf = vmalloc(size);
-	sprintf(buf, "Hello World\n");
-	if (copy_to_user(out, buf, strlen(buf)+1))
+	char *buf = kzmalloc(size);
+	
+    if (! access_ok(VERIFY_WRITE, buf, sizeof(buf)) || ! access_ok(VERIFY_READ, buf, sizeof(buf)))
 	{
+		printk(KERN_ERR "access_ok failed module_access_ok\n");
 		return -EFAULT;
 	}
+	
+	sprintf(buf, "Hello World\n");
+	
+	int lnCopyToUser = copy_to_user(out, buf, strlen(buf)+1);
+	if (lnCopyToUser > 0)
+	{
+		kfree(buf);
+		return -EFAULT;
+	}
+	
+	kfree(buf);
+	
+	return size;
 }
 
 

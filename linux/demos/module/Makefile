@@ -12,20 +12,20 @@ ifeq ($(KERNELRELEASE),)
 
 	# The current directory is passed to sub-makes as argument
 	PWD := $(shell pwd)
-
 modules:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
+	gcc userprogram.c -o userprogram
 
 modules_install:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
 
 clean:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) clean
-	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions
+	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions userprogram
 
 .PHONY: modules modules_install clean
 
 else
 	# called from kernel build system: just declare what our modules are
-	obj-m := hello.o hellon.o 
+	obj-m := mytime.o hellon.o
 endif

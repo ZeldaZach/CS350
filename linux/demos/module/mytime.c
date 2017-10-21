@@ -23,13 +23,9 @@ static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_
 	int lnCopyToUser;
 	struct timespec lCurrentTimeKernel;
 	struct timespec lCurrentTimeDay;
-	char *lspOutBuffer = kmalloc(1, GFP_KERNEL);
+	char *lspOutBuffer = kmalloc(length, GFP_KERNEL);
 
-	if (lspOutBuffer)
-	{
-		printk(KERN_ERR "ENOMEM ISSUE");
-		return -ENOMEM;
-	}
+	printk(KERN_INFO "Address %p", lspOutBuffer);
 
     if (! access_ok(VERIFY_WRITE, lspOutBuffer, sizeof(lspOutBuffer)))
 	{

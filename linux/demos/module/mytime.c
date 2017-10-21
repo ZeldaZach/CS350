@@ -23,18 +23,13 @@ static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_
 	int lnCopyToUser;
 	struct timespec lCurrentTimeKernel;
 	struct timespec lCurrentTimeDay;
-	char *lspOutBuffer = kmalloc(length, GFP_KERNEL);
+	char *lspOutBuffer = kzalloc(length, GFP_KERNEL);
 
 	printk(KERN_INFO "Address %p", lspOutBuffer);
 
-    if (! access_ok(VERIFY_WRITE, lspOutBuffer, sizeof(lspOutBuffer)))
+    if (! access_ok(VERIFY_WRITE, buffer, length))
 	{
 		printk(KERN_ERR "access_ok failed module_access_ok\n");
-
-		if (! access_ok(VERIFY_READ, lspOutBuffer, sizeof(lspOutBuffer)))
-		{
-			printk(KERN_ERR "continue failed read\n");
-		}
 		return -EFAULT;
 	}
 
@@ -51,7 +46,7 @@ static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_
 
 	lnCopyToUser = copy_to_user(buffer, lspOutBuffer, strlen(lspOutBuffer)+1);
 
-	vfree(lspOutBuffer);
+	kfree(lspOutBuffer);
 	if (lnCopyToUser > 0)
 	{
 		printk(KERN_ERR "copy_to_user failed mytime %d\n", lnCopyToUser);

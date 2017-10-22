@@ -18,6 +18,6 @@ When changing the return value for init_module() to -1,
 $ insmod mytime.ko
 insmod: ERROR: could not insert module mytime.ko: Operation not permitted
 
-If you attempt to insert a module as a non-root/sudo user, you will be greated with this error. Only the root user may insert a new module into the kernel. 
+If you attempt to insert a module as a non-root/sudo user, you will be greeted with this error. Only the root user may insert a new module into the kernel. 
 
 

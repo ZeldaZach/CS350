@@ -10,12 +10,12 @@ module_param(whom, charp, S_IRUGO);
 // called when module is installed
 int __init init_module()
 {
-	int i;
+    int i;
 
-	for( i=0; i<howmany; i++)
-		printk(KERN_ALERT "mymodule: Hello %s!\n", whom);
+    for( i=0; i<howmany; i++)
+        printk(KERN_ALERT "mymodule: Hello %s!\n", whom);
 
-	return 0;
+    return 0;
 }
 
 
@@ -23,9 +23,9 @@ int __init init_module()
 // called when module is removed
 void __exit cleanup_module()
 {
-	int i;
+    int i;
 
-	for( i=0; i<howmany; i++)
-		printk(KERN_ALERT "mymodule: %d: Goodbye, cruel %s!!\n", i, whom);
+    for( i=0; i<howmany; i++)
+        printk(KERN_ALERT "mymodule: %d: Goodbye, cruel %s!!\n", i, whom);
 }
 

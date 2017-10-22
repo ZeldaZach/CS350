@@ -14,10 +14,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Zach Halpern");
 MODULE_VERSION("0.0.2");
 
-static char *name = "World";
-module_param(name, charp, S_IRUGO);
-MODULE_PARM_DESC(name, "Name to display in dmesg");
-
 static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset)
 {
 	int lnCopyToUser;
@@ -70,7 +66,7 @@ static struct miscdevice my_time_device = {
 // called when module is installed
 int __init init_module(void)
 {
-	printk(KERN_INFO "mymodule: Hello %s!\n", name);
+	printk(KERN_INFO "mytime: Loaded into Kernel\n");
 
 	misc_register(&my_time_device);
 
@@ -82,7 +78,7 @@ int __init init_module(void)
 // called when module is removed
 void __exit cleanup_module(void)
 {
-	printk(KERN_INFO "mymodule: Goodbye, cruel %s!!\n", name);
+	printk(KERN_INFO "mytime: Removed from Kernel\n");
 
 	misc_deregister(&my_time_device);
 }

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define N 10
 #define MAX_LENGTH 150
@@ -12,6 +13,7 @@ int main()
 {
 	struct timeval gtodTimes[N];
 	char *procClockTimes[N];
+	struct timespec clockTimeTimes[N];
 	int i;
 	int fd;
 	int bytes_read;
@@ -35,8 +37,23 @@ int main()
 
 	for (i = 0; i < N; i++)
 	{
+		// Library function copied into gtodTimes[i]
 		gettimeofday(&gtodTimes[i], 0);
+
+		// This will copy value into procClockTimes[i]
 		bytes_read = read(fd, procClockTimes[i], MAX_LENGTH);
+		if (bytes_read < 0)
+		{
+			printf("Error read()ing at %d\n", i);
+			exit(3);
+		}
+
+		if (clock_gettime(CLOCK_REALTIME, &clockTimeTimes[i]) == -1)
+		{
+			printf("Error clock_gettime() at %d\n", i);
+			exit(4);
+		}
+
 	}
 
 	close(fd);
@@ -88,10 +105,12 @@ int main()
 
 		free(backup_copy);
 
-		printf("---%d---\nLibrary gettimeofday:%ld %ld\nKernel:\n%sTime Difference: %ld\n",
+		printf("---%d---\nLibrary gettimeofday: %ld %ld\nLibrary clock_gettime: %ld %ld\nKernel:\n%sTime Difference: %ld\n",
 			i,
 			gtodTimes[i].tv_sec,
 			gtodTimes[i].tv_usec,
+			clockTimeTimes[i].tv_sec,
+			clockTimeTimes[i].tv_nsec,
 			procClockTimes[i],
 			lnTimeDifference
 		);

@@ -1,0 +1,35 @@
+When the producer is killed while the consumer is running, the consumer program throws an error that it cannot read.
+
+```
+error reading ret=0 errno=0 perror: Undefined error: 0
+error reading ret=0 errno=60 perror: Operation timed out
+error reading ret=0 errno=60 perror: Operation timed out
+...
+```
+
+This happens because there is no information in the pipe, so the consumer has nothing to read from the pipe and gets an undefined error, which is not actually an error. It signifies the end of the file (AKA the pipe is empty). Afterwards, it times out as there is no new information in the pipe as it keeps checking but finds nothing so it times out.
+
+The read() command returns 0, indicating that it has not read any bytes which triggers an error report. The system will keep re-trying to read the pipe if such an error were to happen every second. 
+
+____
+
+When the consumer is killed while the producer is running, the producer attempts to write to the pipe, but the pipe is full already. Since the producer cannot write to the pipe anymore, it cannot continue its normal function.
+
+The write() command returns -1, indicating that the write failed and it set the errno and perror vars. Errorno 32 means the pipe has been disturbed.
+
+```
+error writing ret=-1 errno=32 perror: Broken pipe
+error writing ret=-1 errno=32 perror: Broken pipe
+```
+
+____
+
+If we have one consumer and several producers, the producers will all write to the same pipe correctly, once per second, while the single conumer is reading in several lines a second; one for each producer. The producers wait until the pipe is free and then they fight for who gets to write to the pipe in the next cycle.
+
+____
+
+If we have several consumers and one producer, the producer will write correctly to the pipe once a second. The consumers are now all attempting to read the pipe and wait until the resource is free and they can take control. Each consumer gets approximately 1/N of the outputs, where N is the number of consumers attempting to get at this one producer's results.
+
+___
+
+If we have several consumers and several producers, Each producer has to wait until the resource (pipe) is free and then it will insert its value. In addition, the pipe has to have been already read by one of the consumers before the producer can put its value into the pipe. So there is essentially a queue for producers and a queue for consumers, of which any of them can be chosen to write/read from the pipe at any moment, once the resource is free. 

@@ -30,6 +30,10 @@ ____
 
 If we have several consumers and one producer, the producer will write correctly to the pipe once a second. The consumers are now all attempting to read the pipe and wait until the resource is free and they can take control. Each consumer gets approximately 1/N of the outputs, where N is the number of consumers attempting to get at this one producer's results. The consumers block on read until the pipe is above minimum capacity (the semaphore goes from 0 to 1) and they are then woken up to compete at reading the next input.
 
-___
+____
 
 If we have several consumers and several producers, Each producer has to wait until the resource (pipe) is free and then it will insert its value. In addition, the pipe has to have been already read by one of the consumers before the producer can put its value into the pipe. So there is essentially a queue for producers and a queue for consumers, of which any of them can be chosen to write/read from the pipe at any moment, once the resource is free. 
+
+____
+
+To solve part C, I'm going to look into a kernel module that uses copy_from_user() to get the value for the write() head and then copy_to_user() for the read() head. Since it can have N number of entries, to keep track of it I'll use a vector of sorts. I will also have conditions to ensure if the pipe is full or empty we stall the processes by calling a sleep() command to stall the process until the vector is no longer at 0 or N (depending on read/write options). The sleep command will allow for the processes to only be woken up at the correct time as I'll put conditions in to prevent the wrong type of process from being woken up. Avoiding the race conditions and deadlocks can be dealt with through semaphore locks or mutex locks on the actions that push/pop elements from the vector storage array. 

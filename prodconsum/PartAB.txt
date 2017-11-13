@@ -24,11 +24,11 @@ error writing ret=-1 errno=32 perror: Broken pipe
 
 ____
 
-If we have one consumer and several producers, the producers will all write to the same pipe correctly, once per second, while the single conumer is reading in several lines a second; one for each producer. The producers wait until the pipe is free and then they fight for who gets to write to the pipe in the next cycle.
+If we have one consumer and several producers, the producers will all write to the same pipe correctly, once per second, while the single conumer is reading in several lines a second; one for each producer. The producers wait until the pipe is free and then they fight for who gets to write to the pipe in the next cycle. The producers block until the pipe is below maximum capacity (the semaphore is < N, where N = max storage) and they are woken up, competing to input the next value.
 
 ____
 
-If we have several consumers and one producer, the producer will write correctly to the pipe once a second. The consumers are now all attempting to read the pipe and wait until the resource is free and they can take control. Each consumer gets approximately 1/N of the outputs, where N is the number of consumers attempting to get at this one producer's results.
+If we have several consumers and one producer, the producer will write correctly to the pipe once a second. The consumers are now all attempting to read the pipe and wait until the resource is free and they can take control. Each consumer gets approximately 1/N of the outputs, where N is the number of consumers attempting to get at this one producer's results. The consumers block on read until the pipe is above minimum capacity (the semaphore goes from 0 to 1) and they are then woken up to compete at reading the next input.
 
 ___
 

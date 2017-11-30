@@ -15,57 +15,21 @@ MODULE_AUTHOR("Zach Halpern");
 MODULE_VERSION("0.0.1");
 
 // Header
-static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset);
-static ssize_t my_write(struct file *f, char __user *buffer, size_t length, loff_t *offset);
 int __init init_module(void);
 void __exit cleanup_module(void);
+static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset);
+static ssize_t my_write(struct file *f, const char __user *buffer, size_t length, loff_t *offset);
 
-
+// Code
 int gnMaxEntries = 0;
-MODULE_PARM(gnMaxEntries);
+module_param(gnMaxEntries, int, 0);
 
 static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset)
 {
     return (ssize_t)0;
-    /*
-    int lnCopyToUser;
-    struct timespec lCurrentTimeKernel;
-    struct timespec lCurrentTimeDay;
-    char *lspOutBuffer = kzalloc(length, GFP_KERNEL);
-
-    printk(KERN_INFO "Address %p", lspOutBuffer);
-
-    if (! access_ok(VERIFY_WRITE, buffer, length))
-    {
-        printk(KERN_ERR "access_ok failed module_access_ok\n");
-        return -EFAULT;
-    }
-
-    lCurrentTimeKernel = current_kernel_time();
-    getnstimeofday(&lCurrentTimeDay);
-
-    sprintf(lspOutBuffer,
-        "current_kernel_time: %lu %lu\ngetnstimeofday: %lu %lu\n",
-        lCurrentTimeKernel.tv_sec,
-        lCurrentTimeKernel.tv_nsec,
-        lCurrentTimeDay.tv_sec,
-        lCurrentTimeDay.tv_nsec
-    );
-
-    lnCopyToUser = copy_to_user(buffer, lspOutBuffer, strlen(lspOutBuffer)+1);
-
-    kfree(lspOutBuffer);
-    if (lnCopyToUser > 0)
-    {
-        printk(KERN_ERR "copy_to_user failed mytime %d\n", lnCopyToUser);
-        return -EFAULT;
-    }
-
-    return lnCopyToUser;
-    */
 }
 
-static ssize_t my_write(struct file *f, char __user *buffer, size_t length, loff_t *offset)
+static ssize_t my_write(struct file *f, const char __user *buffer, size_t length, loff_t *offset)
 {
     return (ssize_t)0;
 }

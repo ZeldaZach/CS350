@@ -30,7 +30,7 @@ int fifo_pop(void);
 #define ABSOLUTE_MAX_ENTRIES 1024
 
 // How many entries in our FIFO queue
-int gnMaxEntries = 0;
+int gnMaxEntries = ABSOLUTE_MAX_ENTRIES;
 module_param(gnMaxEntries, int, 0);
 
 // Semaphore to block prod/cons if necessary
@@ -39,9 +39,9 @@ struct semaphore *goSlotsRemainingSema;
 
 // Queue to store the values
 int ganQueue[ABSOLUTE_MAX_ENTRIES] = {-1};
-int gnQueue_head = 0;
-int gnQueue_tail = 0;
-int gnQueue_entries = 0;
+int gnQueue_head;
+int gnQueue_tail;
+int gnQueue_entries;
 
 
 int fifo_is_empty()
@@ -211,7 +211,7 @@ int __init init_module(void)
     misc_register(&my_numpipe_device);
 
     // Alert we've fully loaded
-    printk(KERN_INFO "numpipe: Loaded into Kernel\n");
+    printk(KERN_INFO "numpipe: Loaded into Kernel w/ FIFO Size %d\n", gnMaxEntries);
 
     return 0;
 }

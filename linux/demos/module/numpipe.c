@@ -15,21 +15,19 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Zach Halpern");
 MODULE_VERSION("0.0.1");
 
-// Header
+/* Header Start */
 int __init init_module(void);
 void __exit cleanup_module(void);
 static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset);
 static ssize_t my_write(struct file *f, const char __user *buffer, size_t length, loff_t *offset);
-
 int fifo_is_full(void);
 int fifo_is_empty(void);
 int fifo_push(int anValue);
 int fifo_pop(void);
+/* Header End */
 
 // We should not store more then this many entries in our array
 #define ABSOLUTE_MAX_ENTRIES 1024
-
-/* Code */
 
 // How many entries in our FIFO queue
 int gnMaxEntries = 0;
@@ -40,10 +38,10 @@ struct semaphore *goInputsSema;
 struct semaphore *goSlotsRemainingSema;
 
 // Queue to store the values
-int ganQueue[ABSOLUTE_MAX_ENTRIES];
-int gnQueue_head;
-int gnQueue_tail;
-int gnQueue_entries;
+int ganQueue[ABSOLUTE_MAX_ENTRIES] = {-1};
+int gnQueue_head = 0;
+int gnQueue_tail = 0;
+int gnQueue_entries = 0;
 
 
 int fifo_is_empty()
@@ -134,38 +132,56 @@ int fifo_pop()
     return -1;
 }
 
-// sema_init(), DEFINE_SEMAPHORE, down_interruptible(), and up().
-
-
 static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset)
 {
+    int lnCopyToUser;
+    char *lspOutBuffer = kzalloc(length, GFP_KERNEL);
+
     // If there are no entries in the queue, block until there is an entry
     down_interruptible(goInputsSema);
 
     // We successfully read at this point, so there is one more slot open for writing
+    sprintf(lspOutBuffer, "%d", fifo_pop());
     up(goSlotsRemainingSema);
 
+    if (! access_ok(VERIFY_WRITE, buffer, length))
+    {
+        printk(KERN_ERR "numpipe: access_ok failed for my_read\n");
+        return -EFAULT;
+    }
 
+    lnCopyToUser = copy_to_user(buffer, lspOutBuffer, strlen(lspOutBuffer)+1);
 
+    kfree(lspOutBuffer);
+    if (lnCopyToUser > 0)
+    {
+        printk(KERN_ERR "numpipe: copy_to_user failed for my_read %d\n", lnCopyToUser);
+        return -EFAULT;
+    }
 
-    return (ssize_t)0;
+    return lnCopyToUser;
 }
 
 static ssize_t my_write(struct file *f, const char __user *buffer, size_t length, loff_t *offset)
 {
+    int *lnValueFromUser = kzalloc(length, GFP_KERNEL);
+    int lnCopyFromUser = copy_from_user(lnValueFromUser, buffer, length);
+
+    if (lnCopyFromUser > 0)
+    {
+        printk(KERN_ERR "numpipe: copy_from_user failed for my_write %d\n", lnCopyFromUser);
+        return -EFAULT;
+    }
+
     // If the queue is full, block until there is room
     down_interruptible(goSlotsRemainingSema);
 
     // We successfully wrote at this point, so there is one more input in the queue
+    fifo_push(*lnValueFromUser);
     up(goInputsSema);
 
-
-    
-
-
-    return (ssize_t)0;
+    return 0;
 }
-
 
 static struct file_operations my_fops = {
     .owner = THIS_MODULE,
@@ -182,23 +198,20 @@ static struct miscdevice my_numpipe_device = {
 // called when module is installed
 int __init init_module(void)
 {
-    printk(KERN_INFO "numpipe: Loaded into Kernel\n");
-
+    // Initialize semaphores
     sema_init(goSlotsRemainingSema, gnMaxEntries);
     sema_init(goInputsSema, 0);
 
-    for (int i = 0; i < gnMaxEntries; i++)
-    {
-        ganQueue[i] = kzalloc(sizeof(int), GFP_KERNEL);
-    }
-    //ganQueue = (int*)kzalloc(gnMaxEntries * sizeof(int), GFP_KERNEL);
-    
-
+    // Initialize queue counters
     gnQueue_head = 0;
     gnQueue_tail = 0;
     gnQueue_entries = 0;
 
+    // Register with OS (put into /dev/numpipe)
     misc_register(&my_numpipe_device);
+
+    // Alert we've fully loaded
+    printk(KERN_INFO "numpipe: Loaded into Kernel\n");
 
     return 0;
 }

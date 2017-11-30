@@ -22,11 +22,11 @@ void __exit cleanup_module(void);
 
 
 int gnMaxEntries = 0;
-MODULE_PARM(gnMaxEntries, "i");
+MODULE_PARM(gnMaxEntries);
 
 static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset)
 {
-    return 0;
+    return (ssize_t)0;
     /*
     int lnCopyToUser;
     struct timespec lCurrentTimeKernel;
@@ -67,7 +67,7 @@ static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_
 
 static ssize_t my_write(struct file *f, char __user *buffer, size_t length, loff_t *offset)
 {
-    return 0;
+    return (ssize_t)0;
 }
 
 

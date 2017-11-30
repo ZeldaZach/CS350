@@ -8,3 +8,4 @@ consumer: consumer_numbers.c
 
 clean:
 	rm -f producer_numbers consumer_numbers
+

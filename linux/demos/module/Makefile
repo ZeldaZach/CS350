@@ -14,18 +14,19 @@ ifeq ($(KERNELRELEASE),)
 	PWD := $(shell pwd)
 modules:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
-	gcc userprogram.c -o userprogram
+	gcc producer_numbers.c -o producer_numbers
+	gcc consumer_numbers.c -o consumer_numbers
 
 modules_install:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
 
 clean:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) clean
-	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions userprogram
+	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions *_numbers
 
 .PHONY: modules modules_install clean
 
 else
 	# called from kernel build system: just declare what our modules are
-	obj-m := mytime.o hellon.o
+	obj-m := numpipe.o
 endif

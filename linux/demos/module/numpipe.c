@@ -13,7 +13,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Zach Halpern");
-MODULE_VERSION("0.0.1");
+MODULE_VERSION("0.0.2");
 
 /* Header Start */
 int __init init_module(void);
@@ -34,8 +34,8 @@ int gnMaxEntries = ABSOLUTE_MAX_ENTRIES;
 module_param(gnMaxEntries, int, 0);
 
 // Semaphore to block prod/cons if necessary
-struct semaphore *goInputsSema;
-struct semaphore *goSlotsRemainingSema;
+struct semaphore goInputsSema;
+struct semaphore goSlotsRemainingSema;
 
 // Queue to store the values
 int ganQueue[ABSOLUTE_MAX_ENTRIES] = {-1};
@@ -138,11 +138,11 @@ static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_
     char *lspOutBuffer = kzalloc(length, GFP_KERNEL);
 
     // If there are no entries in the queue, block until there is an entry
-    down_interruptible(goInputsSema);
+    down_interruptible(&goInputsSema);
 
     // We successfully read at this point, so there is one more slot open for writing
     sprintf(lspOutBuffer, "%d", fifo_pop());
-    up(goSlotsRemainingSema);
+    up(&goSlotsRemainingSema);
 
     if (! access_ok(VERIFY_WRITE, buffer, length))
     {
@@ -174,11 +174,11 @@ static ssize_t my_write(struct file *f, const char __user *buffer, size_t length
     }
 
     // If the queue is full, block until there is room
-    down_interruptible(goSlotsRemainingSema);
+    down_interruptible(&goSlotsRemainingSema);
 
     // We successfully wrote at this point, so there is one more input in the queue
     fifo_push(*lnValueFromUser);
-    up(goInputsSema);
+    up(&goInputsSema);
 
     return 0;
 }
@@ -198,17 +198,17 @@ static struct miscdevice my_numpipe_device = {
 // called when module is installed
 int __init init_module(void)
 {
-    // Initialize semaphores
-    sema_init(goSlotsRemainingSema, gnMaxEntries);
-    sema_init(goInputsSema, 0);
+    // Register with OS (put into /dev/numpipe)
+    misc_register(&my_numpipe_device);
 
     // Initialize queue counters
     gnQueue_head = 0;
     gnQueue_tail = 0;
     gnQueue_entries = 0;
 
-    // Register with OS (put into /dev/numpipe)
-    misc_register(&my_numpipe_device);
+    // Initialize semaphores
+    sema_init(&goInputsSema, 0);
+    sema_init(&goSlotsRemainingSema, gnMaxEntries);
 
     // Alert we've fully loaded
     printk(KERN_INFO "numpipe: Loaded into Kernel w/ FIFO Size %d\n", gnMaxEntries);

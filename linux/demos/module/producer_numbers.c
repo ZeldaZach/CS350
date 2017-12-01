@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 		bzero(numstr, MAXLEN);
 		sprintf(numstr, "%d%d\n", getpid(), count++);
 		num_to_write = atoi(numstr);
-		printf("Writing: %d", num_to_write);
+		printf("Writing: %d ", num_to_write);
 
 		// write to pipe
 		ssize_t ret = write(fd, &num_to_write, sizeof(int));

@@ -141,7 +141,7 @@ static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_
     down_interruptible(&goInputsSema);
 
     // We successfully read at this point, so there is one more slot open for writing
-    sprintf(lspOutBuffer, "%d", fifo_pop());
+    sprintf(lspOutBuffer, "Return: %d", fifo_pop());
     up(&goSlotsRemainingSema);
 
     if (! access_ok(VERIFY_WRITE, buffer, length))

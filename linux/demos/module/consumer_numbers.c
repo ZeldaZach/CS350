@@ -31,10 +31,14 @@ int main(int argc, char *argv[])
 	while(1) {
 		// read a line
 		ssize_t ret = read(fd, &num_read, sizeof(int));
-		if( ret > 0) {
+		
+		if(ret > 0)
+		{
 			printf("Number read: %d", num_read);
 			printf("Bytes read: %ld\n", ret);
-		} else {
+		}
+		else
+		{
 			fprintf(stderr, "error reading ret=%ld errno=%d perror: ", ret, errno);
 			perror("");
 			sleep(1);

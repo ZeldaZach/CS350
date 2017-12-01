@@ -1,3 +1,5 @@
+CONFIG_MODULE_SIG=n
+
 # To build modules outside of the kernel tree, we run "make"
 # in the kernel source tree; the Makefile there then includes this
 # Makefile once again.

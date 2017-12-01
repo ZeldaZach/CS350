@@ -36,36 +36,40 @@ module_param(gnMaxEntries, int, 0);
 // Semaphore to block prod/cons if necessary
 struct semaphore goInputsSema;
 struct semaphore goSlotsRemainingSema;
+struct semaphore goMutex;
 
 // Queue to store the values
 int ganQueue[ABSOLUTE_MAX_ENTRIES] = {-1};
-int gnQueue_head;
-int gnQueue_tail;
-int gnQueue_entries;
+int gnQueueHead;
+int gnQueueTail;
+int gnQueueEntries;
 
-
+/**
+ * Check if the queue is empty
+ * Returns 1 on empty, 0 on everything else
+ */
 int fifo_is_empty()
 {
-    if (gnQueue_entries == 0)
+    if (gnQueueEntries == 0)
     {
         return 1;
     }
-    else
-    {
-        return 0;
-    }
+
+    return 0;
 }
 
+/**
+ * Check if the queue is full
+ * Return 1 on full, 0 on everything else
+ */
 int fifo_is_full()
 {
-    if (gnQueue_entries < gnMaxEntries)
+    if (gnQueueEntries < gnMaxEntries)
     {
         return 0;
     }
-    else
-    {
-        return 0;
-    }
+
+    return 1;
 }
 
 /** 
@@ -77,20 +81,20 @@ int fifo_push(int anValue)
     if (! fifo_is_full())
     {
         // Insert the value
-        ganQueue[gnQueue_head] = anValue;
+        ganQueue[gnQueueHead] = anValue;
         
         // Circular increment head
-        if (gnQueue_head < gnMaxEntries)
+        if (gnQueueHead < gnMaxEntries)
         {
-            gnQueue_head++;
+            gnQueueHead++;
         }
         else
         {
-            gnQueue_head = 0;
+            gnQueueHead = 0;
         }
 
         // Total entries now one more
-        gnQueue_entries++;
+        gnQueueEntries++;
 
         // Insert successful
         return 1;
@@ -111,20 +115,20 @@ int fifo_pop()
     if (! fifo_is_empty())
     {
         // Get the value
-        lnRetVal = ganQueue[gnQueue_tail];
+        lnRetVal = ganQueue[gnQueueTail];
 
         // Circular increment tail
-        if (gnQueue_tail < gnMaxEntries)
+        if (gnQueueTail < gnMaxEntries)
         {
-            gnQueue_tail++;
+            gnQueueTail++;
         }
         else
         {
-            gnQueue_tail = 0;
+            gnQueueTail = 0;
         }
 
         // Total entries now one less
-        gnQueue_entries--;
+        gnQueueEntries--;
 
         return lnRetVal;
     }
@@ -132,40 +136,64 @@ int fifo_pop()
     return -1;
 }
 
+/**
+ * If read() called for this driver, return next value from queue
+ */
 static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset)
 {
     int lnCopyToUser;
-    char *lspOutBuffer = kzalloc(length, GFP_KERNEL);
+    char *lspOutBuffer = kzalloc(sizeof(int)*length, GFP_KERNEL);   
 
-    // If there are no entries in the queue, block until there is an entry
-    down_interruptible(&goInputsSema);
-
-    // We successfully read at this point, so there is one more slot open for writing
-    sprintf(lspOutBuffer, "Return: %d", fifo_pop());
-    up(&goSlotsRemainingSema);
-
+    if (! lspOutBuffer)
+    {
+        printk(KERN_ERR "numpipe: kzalloc failed for my_read\n");
+        return -EFAULT;
+    }
+    
+    // Ensure valid write location
     if (! access_ok(VERIFY_WRITE, buffer, length))
     {
         printk(KERN_ERR "numpipe: access_ok failed for my_read\n");
         return -EFAULT;
     }
 
-    lnCopyToUser = copy_to_user(buffer, lspOutBuffer, strlen(lspOutBuffer)+1);
+    // If there are no entries in the queue, block until there is an entry
+    down_interruptible(&goInputsSema);
 
+    // We successfully read at this point, so there is one more slot open for writing
+    down_interruptible(&goMutex);
+    sprintf(lspOutBuffer, "%d", fifo_pop());
+    up(&goMutex);
+    
+    up(&goSlotsRemainingSema);
+    
+    lnCopyToUser = copy_to_user(buffer, lspOutBuffer, strlen(lspOutBuffer)+1);
     kfree(lspOutBuffer);
+
     if (lnCopyToUser > 0)
     {
         printk(KERN_ERR "numpipe: copy_to_user failed for my_read %d\n", lnCopyToUser);
         return -EFAULT;
     }
 
-    return lnCopyToUser;
+    return length;
 }
 
+/**
+ * If write() called for this driver, add value to back of queue
+ */
 static ssize_t my_write(struct file *f, const char __user *buffer, size_t length, loff_t *offset)
 {
+    int lnCopyFromUser = 0;
     int *lnValueFromUser = kzalloc(length, GFP_KERNEL);
-    int lnCopyFromUser = copy_from_user(lnValueFromUser, buffer, length);
+        
+    if (! lnValueFromUser)
+    {
+        printk(KERN_ERR "numpipe: kzalloc failed for my_write\n");
+        return -EFAULT; 
+    }
+        
+    lnCopyFromUser = copy_from_user(lnValueFromUser, buffer, length);
 
     if (lnCopyFromUser > 0)
     {
@@ -177,10 +205,13 @@ static ssize_t my_write(struct file *f, const char __user *buffer, size_t length
     down_interruptible(&goSlotsRemainingSema);
 
     // We successfully wrote at this point, so there is one more input in the queue
+    down_interruptible(&goMutex);
     fifo_push(*lnValueFromUser);
+    up(&goMutex);
+    
     up(&goInputsSema);
 
-    return 0;
+    return length;
 }
 
 static struct file_operations my_fops = {
@@ -195,20 +226,23 @@ static struct miscdevice my_numpipe_device = {
     .fops = &my_fops
 };
 
-// called when module is installed
+/**
+ * Module initializer
+ */
 int __init init_module(void)
 {
     // Register with OS (put into /dev/numpipe)
     misc_register(&my_numpipe_device);
 
     // Initialize queue counters
-    gnQueue_head = 0;
-    gnQueue_tail = 0;
-    gnQueue_entries = 0;
+    gnQueueHead = 0;
+    gnQueueTail = 0;
+    gnQueueEntries = 0;
 
     // Initialize semaphores
     sema_init(&goInputsSema, 0);
     sema_init(&goSlotsRemainingSema, gnMaxEntries);
+    sema_init(&goMutex, 1);
 
     // Alert we've fully loaded
     printk(KERN_INFO "numpipe: Loaded into Kernel w/ FIFO Size %d\n", gnMaxEntries);
@@ -216,7 +250,9 @@ int __init init_module(void)
     return 0;
 }
 
-// called when module is removed
+/**
+ * Module remover
+ */
 void __exit cleanup_module(void)
 {
     printk(KERN_INFO "numpipe: Removed from Kernel\n");

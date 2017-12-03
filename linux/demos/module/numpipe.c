@@ -72,7 +72,7 @@ int fifo_is_full()
     return 1;
 }
 
-/** 
+/**
  * Push new element to FIFO queue.
  * Returns 1 on success, 0 on failure.
  */
@@ -82,7 +82,7 @@ int fifo_push(int anValue)
     {
         // Insert the value
         ganQueue[gnQueueHead] = anValue;
-        
+
         // Circular increment head
         if (gnQueueHead < gnMaxEntries)
         {
@@ -99,7 +99,7 @@ int fifo_push(int anValue)
         // Insert successful
         return 1;
     }
-    
+
     // Insert failed
     return 0;
 }
@@ -142,14 +142,14 @@ int fifo_pop()
 static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset)
 {
     int lnCopyToUser;
-    char *lspOutBuffer = kzalloc(sizeof(int)*length, GFP_KERNEL);   
+    char *lspOutBuffer = kzalloc(sizeof(int)*length, GFP_KERNEL);
 
     if (! lspOutBuffer)
     {
         printk(KERN_ERR "numpipe: kzalloc failed for my_read\n");
         return -EFAULT;
     }
-    
+
     // Ensure valid write location
     if (! access_ok(VERIFY_WRITE, buffer, length))
     {
@@ -164,9 +164,9 @@ static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_
     down_interruptible(&goMutex);
     sprintf(lspOutBuffer, "%d", fifo_pop());
     up(&goMutex);
-    
+
     up(&goSlotsRemainingSema);
-    
+
     lnCopyToUser = copy_to_user(buffer, lspOutBuffer, strlen(lspOutBuffer)+1);
     kfree(lspOutBuffer);
 
@@ -186,13 +186,13 @@ static ssize_t my_write(struct file *f, const char __user *buffer, size_t length
 {
     int lnCopyFromUser = 0;
     int *lnValueFromUser = kzalloc(length, GFP_KERNEL);
-        
+
     if (! lnValueFromUser)
     {
         printk(KERN_ERR "numpipe: kzalloc failed for my_write\n");
-        return -EFAULT; 
+        return -EFAULT;
     }
-        
+
     lnCopyFromUser = copy_from_user(lnValueFromUser, buffer, length);
 
     if (lnCopyFromUser > 0)
@@ -208,7 +208,7 @@ static ssize_t my_write(struct file *f, const char __user *buffer, size_t length
     down_interruptible(&goMutex);
     fifo_push(*lnValueFromUser);
     up(&goMutex);
-    
+
     up(&goInputsSema);
 
     return length;

@@ -97,11 +97,11 @@ int fifo_push(int anValue)
         gnQueueEntries++;
 
         // Insert successful
-        return 1;
+        return anValue;
     }
 
     // Insert failed
-    return 0;
+    return -1;
 }
 
 /**
@@ -130,9 +130,11 @@ int fifo_pop()
         // Total entries now one less
         gnQueueEntries--;
 
+        // Insert successful
         return lnRetVal;
     }
 
+    // Insert failed
     return -1;
 }
 
@@ -142,13 +144,7 @@ int fifo_pop()
 static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_t *offset)
 {
     int lnCopyToUser;
-    char *lspOutBuffer = kzalloc(sizeof(int)*length, GFP_KERNEL);
-
-    if (! lspOutBuffer)
-    {
-        printk(KERN_ERR "numpipe: kzalloc failed for my_read\n");
-        return -EFAULT;
-    }
+    int lnOutBuffer;
 
     // Ensure valid write location
     if (! access_ok(VERIFY_WRITE, buffer, length))
@@ -158,17 +154,26 @@ static ssize_t my_read(struct file *f, char __user *buffer, size_t length, loff_
     }
 
     // If there are no entries in the queue, block until there is an entry
-    down_interruptible(&goInputsSema);
+    if (down_interruptible(&goInputsSema))
+    {
+        printk(KERN_INFO "numpipe: down_interruptible failed for InputsSema in my_read\n");
+        return -EFAULT;
+    }
 
     // We successfully read at this point, so there is one more slot open for writing
-    down_interruptible(&goMutex);
-    sprintf(lspOutBuffer, "%d", fifo_pop());
-    up(&goMutex);
+    if (down_interruptible(&goMutex))
+    {
+        up(&goInputsSema); // Return the lock from before as it succeeded
+        printk(KERN_INFO "numpipe: down_interruptible failed for Mutex in my_read\n");
+        return -EFAULT;
+    }
 
+    lnOutBuffer = fifo_pop();
+    
+    up(&goMutex);
     up(&goSlotsRemainingSema);
 
-    lnCopyToUser = copy_to_user(buffer, lspOutBuffer, strlen(lspOutBuffer)+1);
-    kfree(lspOutBuffer);
+    lnCopyToUser = copy_to_user(buffer, &lnOutBuffer, length);
 
     if (lnCopyToUser > 0)
     {
@@ -202,13 +207,22 @@ static ssize_t my_write(struct file *f, const char __user *buffer, size_t length
     }
 
     // If the queue is full, block until there is room
-    down_interruptible(&goSlotsRemainingSema);
+    if (down_interruptible(&goSlotsRemainingSema))
+    {
+        printk(KERN_INFO "numpipe: down_interruptible failed for SlotsRemaining in my_write\n");
+        return -EFAULT;
+    }
 
     // We successfully wrote at this point, so there is one more input in the queue
-    down_interruptible(&goMutex);
+    if (down_interruptible(&goMutex))
+    {
+        up(&goSlotsRemainingSema); // Return the lock from before as it succeeded
+        printk(KERN_INFO "numpipe: down_interruptible failed for Mutex in my_write\n");
+        return -EFAULT;
+    }
+    
     fifo_push(*lnValueFromUser);
     up(&goMutex);
-
     up(&goInputsSema);
 
     return length;
@@ -240,8 +254,8 @@ int __init init_module(void)
     gnQueueEntries = 0;
 
     // Initialize semaphores
-    sema_init(&goInputsSema, 0);
-    sema_init(&goSlotsRemainingSema, gnMaxEntries);
+    sema_init(&goInputsSema, 0); // FULL
+    sema_init(&goSlotsRemainingSema, gnMaxEntries); // EMPTY
     sema_init(&goMutex, 1);
 
     // Alert we've fully loaded

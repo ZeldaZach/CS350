@@ -1,4 +1,3 @@
-#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,45 +19,36 @@ int main(int argc, char *argv[])
     int count = 0;
     int num_to_write;
 
-    if (argc != 2)
-    {
+    if( argc != 2) {
         printf("Usage: %s <numpipe_name>\n", argv[0]);
         exit(1);
-    }
+    }   
 
-    if ((fd = open(argv[1], O_WRONLY)) < 0)
-    {
+    if ( (fd = open(argv[1], O_WRONLY)) < 0) {
         perror(""); printf("error opening %s\n", argv[1]);
         exit(1);
-    }
-
+    } 
+    
     // Prevent producer from dying due to SIGPIPE when last consumer quits
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN); 
 
-    time_t t;
-    srand((unsigned) time(&t));
-
-    int randSeed = 500 + rand()%501;
-    while(1)
-    {
+    while(1) {
         bzero(numstr, MAXLEN);
-        sprintf(numstr, "%d000%d\n", randSeed, count++);
+        sprintf(numstr, "%d%d\n", getpid(), count++);
         num_to_write = atoi(numstr);
-        printf("Writing: %d\t", num_to_write);
+        printf("Writing: %d ", num_to_write);
 
         // write to pipe
         ssize_t ret = write(fd, &num_to_write, sizeof(int));
-        if (ret < 0)
-        {
+        if ( ret < 0) {
             fprintf(stderr, "error writing ret=%ld errno=%d perror: ", ret, errno);
             perror("");
-        }
-        else
-        {
+        } else {
             printf("Bytes written: %ld\n", ret);
         }
         sleep(1);
     }
+
     close(fd);
 
     return 0;

@@ -1,4 +1,4 @@
-#CS350
+# CS350
 
 CS350 -- Operating Systems (Fall 2017)
 
